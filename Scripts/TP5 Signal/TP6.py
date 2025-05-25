@@ -5,7 +5,7 @@ import scipy.fft as fft
 from scipy.signal import zpk2tf, lfilter,freqz
 import matplotlib.pyplot as plt
 
-audioSource_t, fe = sf.read(r'C:\Users\mathe\TNS\Sources\music.wav')
+audioSource_t, fe = sf.read(r'C:\Users\belou\Desktop\TNS\Sources\music.wav')
 #audioSource=audioSource
 #sd.play(audioSource, fe)
 #sd.wait()
@@ -94,21 +94,23 @@ plt.grid(True)
 plt.show()
 
 #On filtre jusqu'à 16 kHz :
-fc =16000
+fc =13500
 omega_c = (fc/fe) *2*np.pi
-zero = [-1,np.exp(-1j*np.pi*0.99),np.exp(-1j*np.pi*0.98)]
-#zero=[]
-r = 0.8
-pole = [r*np.exp(1j*(16000/fe*2*np.pi)), r*np.exp(- 1j*(16000/fe*2*np.pi) ) ]
+#zero = [-1,np.exp(-1j*np.pi*0.95),np.exp(-1j*np.pi*0.98)]
+zero=[-1, -1]
+r = 0.9995
+pole = [r*np.exp(1j*(fc/fe*2*np.pi)), r*np.exp(- 1j*(fc/fe*2*np.pi) ) ]
 #pole=[0.5]
-b,a = zpk2tf(zero, pole,1)
+k=(1+r**2-2*r*np.cos(omega_c))/4
+b,a = zpk2tf(zero, pole,k)
 # réponse en fréquence
 w, h = freqz(b, a, worN=1000, fs=fe)
 
 # tracé module
 plt.figure(figsize=(8, 4))
 plt.plot(w, 20 * np.log10(abs(h)), label='Filtre ')
-plt.axvline(fc, color='r', linestyle='--', label='Fréquence de coupure')
+plt.axvline(16000, color='r', linestyle='--', label='Fréquence de coupure')
+
 plt.title("Réponse en fréquence du filtre ")
 plt.xlabel("Fréquence (Hz)")
 plt.ylabel("Gain (dB)")
@@ -157,9 +159,106 @@ def trace_pole_zero(poles, zeros, titre="Diagramme pôle-zéro"):
 trace_pole_zero(pole,zero, titre="Diagramme pôle-zéro")
 audioRecu = lfilter(b,a,audioSource)
 audioRecu = np.real(audioRecu)
-sd.play(audioSource, fe)
+#sd.play(audioSource, fe)
 sd.wait()
-sd.play(audioRecu,fe)
+#sd.play(audioRecu,fe)
+sd.wait()
+
+#Passe-bande autour de 17625Hz :
+#On filtre jusqu'à 16 kHz :
+fc =17625
+omega_c = (fc/fe) *2*np.pi
+zero = [-1,1]
+#zero=[-1, 0.6]
+r = 0.9995
+pole = [r*np.exp(1j*(omega_c)), r*np.exp(- 1j*(omega_c) ) ]
+#pole=[0.5]
+k=np.abs(np.exp(1j*omega_c)-2*r*np.cos(omega_c)*np.exp(1j*omega_c)+r*r)/np.abs(np.exp(2j*omega_c)-1)
+b,a = zpk2tf(zero, pole,k)
+
+# réponse en fréquence
+w, h = freqz(b, a, worN=1000, fs=fe)
+
+# tracé module
+plt.figure(figsize=(8, 4))
+plt.plot(w, 20 * np.log10(abs(h)), label='Filtre ')
+plt.axvline(fc, color='r', linestyle='--', label='Fréquence de coupure')
+
+plt.title("Réponse en fréquence du filtre ")
+plt.xlabel("Fréquence (Hz)")
+plt.ylabel("Gain (dB)")
+#plt.ylim(-40, 5)
+plt.grid()
+plt.legend()
+plt.show()
+
+trace_pole_zero(pole,zero, titre="Diagramme pôle-zéro")
+sigInfo = lfilter(b,a,audioSource)
+sigInfo = np.real(sigInfo)
+sd.play(audioRecu, fe)
+sd.wait()
+#sd.play(sigInfo,fe)
 sd.wait()
 
 
+#Tracé des réponses temporelles
+plt.subplot(3,1,1)
+t=np.arange(len(audioSource))/fe
+plt.plot(t, audioSource, label='AudioSource')
+plt.title("Source audio")
+plt.xlabel("temps (s)")
+plt.ylabel("amplitude ")
+plt.legend()
+plt.grid(True)
+plt.subplot(3,1,2)
+t=np.arange(len(sigInfo))/fe
+plt.plot(t, sigInfo, label='Signal')
+plt.title("Signal caché")
+plt.xlabel("temps (s)")
+plt.ylabel("amplitude ")
+plt.legend()
+plt.grid(True)
+plt.subplot(3,1,3)
+t=np.arange(len(audioRecu))/fe
+plt.plot(t, audioRecu, label='AudioRecu')
+plt.title("Recu audio")
+plt.xlabel("temps (s)")
+plt.ylabel("amplitude ")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+#Tracé des réponses fréquentielles
+plt.subplot(3,1,1)
+TF_audioSource = fft.fft(audioSource)
+freq_audio = fft.fftfreq(len(audioSource), d=1/fe)
+mask=np.where(freq_audio > 0)
+plt.plot(freq_audio[mask], TF_audioSource[mask], label='AudioSource')
+plt.title("Source audio")
+plt.xlabel("Fréquence (Hz)")
+plt.ylabel("amplitude ")
+plt.legend()
+plt.grid(True)
+
+plt.subplot(3,1,2)
+TF_sigInfo = fft.fft(sigInfo)
+freq_sigInfo = fft.fftfreq(len(sigInfo), d=1/fe)
+mask=np.where((freq_sigInfo > 17500)&(freq_sigInfo <17800))
+plt.plot(freq_sigInfo[mask], TF_sigInfo[mask], label='SigInfo')
+plt.title("Signal caché")
+plt.xlabel("Fréquence (Hz)")
+plt.ylabel("amplitude ")
+plt.legend()
+plt.grid(True)
+
+plt.subplot(3,1,3)
+TF_audioRecu = fft.fft(audioRecu)
+freq_audioRecu = fft.fftfreq(len(audioRecu), 1/fe)
+mask=np.where(freq_audioRecu > 0)
+plt.plot(freq_audioRecu[mask], TF_audioRecu[mask], label='AudioRecu')
+plt.title("Recu audio")
+plt.xlabel("Fréquence (Hz)")
+plt.ylabel("amplitude ")
+plt.legend()
+plt.grid(True)
+plt.show()

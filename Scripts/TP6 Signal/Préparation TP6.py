@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from scipy import signal
 
 # p1: Load the MATLAB file
-mat_data = sio.loadmat(r'C:\Users\mathe\TNS\Sources\placement.mat')
+mat_data = sio.loadmat(r'C:\Users\belou\Desktop\TNS\Sources\placement.mat')
 
 # Extract filter coefficients
 filters = {
